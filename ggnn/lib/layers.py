@@ -7,6 +7,7 @@ def split(x, axis=0):
     if x.shape[axis] == 1:
         s = list(x.shape)
         s.pop(axis)
+        x = F.broadcast(x, x.shape)
         return [F.reshape(x, s)]
     else:
         return F.split(x, axis=axis)
@@ -15,6 +16,7 @@ def stack(xs, axis=0):
     if len(xs) == 1:
         s = list(xs[0].shape)
         s.insert(axis, 1)
+        xs[0] = F.broadcast(xs[0], xs[0].shape)
         return F.reshape(xs[0], s)
     else:
         return F.stack(*xs, axis=axis)
