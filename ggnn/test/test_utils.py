@@ -23,7 +23,11 @@ class TestUtils(TestCase):
         l = [[(1, "B")], [(3, "C")], [(1, "C")], [(2, "B")]]
         expected = { "B": [(0, 1), (3, 2)], "C": [(1, 3), (2, 1)] }
         self.assertEqual(expected, U.from_neighbor_list(l))
-def test_from_neighbor_matrix(self):
+    def test_from_neighbor_matrix(self):
         m = [[None, "B", None, None], [None, None, None, "C"], [None, "C", None, None], [None, None, "B", None]]
         expected = { "B": [(0, 1), (3, 2)], "C": [(1, 3), (2, 1)] }
         self.assertEqual(expected, U.from_neighbor_matrix(m))
+    def test_from_edge_list(self):
+        m = [(0, 1, "B"), (1, 3, "C"), (2, 1, "C"), (3, 2, "B")]
+        expected = { "B": [(0, 1), (3, 2)], "C": [(1, 3), (2, 1)] }
+        self.assertEqual(expected, U.from_edge_list(m))

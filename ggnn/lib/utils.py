@@ -29,3 +29,11 @@ def from_neighbor_matrix(m):
                 edges[label] = []
             edges[label].append((i, j))
     return edges
+
+def from_edge_list(l):
+    edges = {}
+    for i, j, label in l:
+        if not (label in edges.keys()):
+            edges[label] = []
+        edges[label].append((i, j))
+    return edges
