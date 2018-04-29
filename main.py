@@ -1,4 +1,4 @@
-from examples import bAbI15, degree
+from examples import bAbI15, bAbI19, degree
 
 if __name__ == '__main__':
     import sys
@@ -9,6 +9,8 @@ if __name__ == '__main__':
     
     if task == 'degree':
         degree.train()
+    elif task == 'bAbI19':
+        bAbI19.train()
     elif task == 'bAbI15':
         bAbI15.train()
     else:
