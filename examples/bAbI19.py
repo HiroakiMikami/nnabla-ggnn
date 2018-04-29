@@ -90,6 +90,40 @@ class BAbI19DataSource(SimpleDataSource):
         if self._shuffle:
             self._rng.shuffle(self._order)
 
+def step(h, x, E):
+    for _ in range(5):
+        h = layers.propagate(h, E)
+
+    # output
+    with nn.parameter_scope("output"):
+        output = layers.graph_representation(h, x, len(classes))
+
+    # annotation
+    with nn.parameter_scope("annotation"):
+        h = F.concatenate(h, x)
+        with nn.parameter_scope("node_annotation"):
+            x = F.sigmoid(PF.affine(h, x.shape[1]))
+        z = nn.Variable((x.shape[0], h.shape[1] - x.shape[1] * 2))
+        z.data.data[:, :] = 0.0
+        h = F.concatenate(x, z)
+    return h, x, output
+    
+
+def predict(V, E, n):
+    # convert to nn.Variable
+    x = nn.Variable(V.shape)
+    x.data.data = V
+    h = nn.Variable((len(V), 6))
+    h.data.data = utils.h_0(V, 6)
+
+    outputs = []
+    for _ in range(n):
+        # propagate
+        h, x, output = step(h, x, E)
+        outputs.append(output)
+
+    return outputs
+
 def train():
     parser = argparse.ArgumentParser()
     parser.add_argument("--train-file", type=str)
@@ -135,35 +169,16 @@ def train():
             h = nn.Variable((len(V), 6))
             h.data.data = utils.h_0(V, 6)
 
+            outputs = predict(V, E, len(ans))
             losses = []
             errors = []
-            for a in ans:
-                ## propagate
-                for _ in range(5):
-                    h = layers.propagate(h, E)
+            for a, output in zip(ans, outputs):
+                label = nn.Variable((1, 1))
+                label.data.data[0, 0] = a
 
-                ## output
-                with nn.parameter_scope("output"):
-                    with nn.parameter_scope("graph_level_representation"):
-                        output = F.concatenate(h, x)
-                        output = PF.affine(output, (2, len(classes)))
-                    (s, t) = F.split(output, axis=1)
-                    output = F.sum(F.mul2(F.sigmoid(s), F.tanh(t)), axis=0, keepdims=True)
-                    label = nn.Variable((1, 1))
-                    label.data.data[0, 0] = a
-
-                    losses.append(F.mean(F.softmax_cross_entropy(output, label)))
-                    output2 = output.unlinked()
-                    errors.append(F.mean(F.top_n_error(output2, label)))
-
-                ## annotation
-                with nn.parameter_scope("annotation"):
-                    h = F.concatenate(h, x)
-                    with nn.parameter_scope("node_annotation"):
-                        x = F.sigmoid(PF.affine(h, x.shape[1]))
-                    z = nn.Variable((len(V), 4))
-                    z.data.data[:, :] = 0.0
-                    h = F.concatenate(x, z)
+                losses.append(F.mean(F.softmax_cross_entropy(output, label)))
+                output2 = output.unlinked()
+                errors.append(F.mean(F.top_n_error(output2, label)))
 
             # initialize solver
             if not solver_initialized:
@@ -208,33 +223,15 @@ def train():
                 h = nn.Variable((len(V), 6))
                 h.data.data = utils.h_0(V, 6)
 
+                outputs = predict(V, E, len(ans))
                 errors = []
                 actual = []
-                for a in ans:
-                    ## propagate
-                    for _ in range(5):
-                        h = layers.propagate(h, E)
+                for a, output in zip(ans, outputs):
+                    label = nn.Variable((1, 1))
+                    label.data.data[0, 0] = a
 
-                    ## output
-                    with nn.parameter_scope("output"):
-                        with nn.parameter_scope("graph_level_representation"):
-                            output = F.concatenate(h, x)
-                            output = PF.affine(output, (2, len(classes)))
-                        (s, t) = F.split(output, axis=1)
-                        output = F.sum(F.mul2(F.sigmoid(s), F.tanh(t)), axis=0, keepdims=True)
-                        label = nn.Variable((1, 1))
-                        label.data.data[0, 0] = a
-                        errors.append(F.mean(F.top_n_error(output, label)))
-                        actual.append(output.data.data)
-
-                    ## annotation
-                    with nn.parameter_scope("annotation"):
-                        h = F.concatenate(h, x)
-                        with nn.parameter_scope("node_annotation"):
-                            x = F.sigmoid(PF.affine(h, x.shape[1]))
-                        z = nn.Variable((len(V), 4))
-                        z.data.data[:, :] = 0.0
-                        h = F.concatenate(x, z)
+                    errors.append(F.mean(F.top_n_error(output, label)))
+                    actual.append(output.data.data)
 
                 error = F.mean(F.stack(*errors))
                 error.forward(clear_no_need_grad=True)

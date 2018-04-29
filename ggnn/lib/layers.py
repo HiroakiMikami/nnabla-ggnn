@@ -128,3 +128,10 @@ def propagate(h, edges, state_size=None,
 def node_representation(h, x, n_outmaps, w_init=None, b_init=None):
     with nn.parameter_scope("node_representation"):
         return PF.affine(F.concatenate(h, x), n_outmaps, w_init=w_init, b_init=b_init)
+
+def graph_representation(h, x, n_outmaps, w_init=None, b_init=None):
+    with nn.parameter_scope("graph_representation"):
+        output = F.concatenate(h, x)
+        output = PF.affine(output, (2, n_outmaps), w_init=w_init, b_init=b_init)
+        (s, t) = F.split(output, axis=1)
+        return F.sum(F.mul2(F.sigmoid(s), F.tanh(t)), axis=0, keepdims=True)

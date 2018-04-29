@@ -3,6 +3,7 @@ import lib.layers as L
 import nnabla as nn
 import nnabla.initializer as I
 import numpy as np
+import math
 from unittest import TestCase
 
 class TestLayers(TestCase):
@@ -109,3 +110,21 @@ class TestLayers(TestCase):
             self.assertEqual((1, 1), r.shape)
             r.forward()
             self.assertEqual(3, r.data.data[0, 0])
+
+    def test_graph_representation(self):
+        h = nn.Variable((2, 1))
+        h.data.data[0] = 1
+        h.data.data[1] = 2
+        x = nn.Variable((2, 1))
+        x.data.data[0] = 2
+        x.data.data[1] = 4
+
+        with nn.parameter_scope("test_graph_representation"):
+            r = L.graph_representation(h, x, 1, w_init=I.ConstantInitializer(1), b_init=I.ConstantInitializer(0))
+            self.assertEqual((1, 1), r.shape)
+            r.forward()
+
+            actual = 0
+            actual += 1 / (1 + math.exp(-3)) * math.tanh(3)
+            actual += 1 / (1 + math.exp(-6)) * math.tanh(6)
+            self.assertTrue(np.allclose(actual, r.data.data[0, 0]))
