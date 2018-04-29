@@ -81,13 +81,13 @@ def train():
     for i in range(args.num_train_examples):
         V, E = random_graph(rng)
         deg = degrees(V, E)
-        tdataset.append(([V], [utils.from_neighbor_list(E)], [deg]))
+        tdataset.append(([V], [utils.from_adjacency_list(E)], [deg]))
 
     vdataset = []
     for i in range(args.num_valid_examples):
         V, E = random_graph(rng)
         deg = degrees(V, E)
-        vdataset.append(([V], [utils.from_neighbor_list(E)], [deg]))
+        vdataset.append(([V], [utils.from_adjacency_list(E)], [deg]))
 
 
     # prepare data iterator

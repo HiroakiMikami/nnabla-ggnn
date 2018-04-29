@@ -30,7 +30,7 @@ def activate(h, edges, state_size=None, bias_initializer=None, edge_initializers
 
     Arguments:
 
-    h                 -- the input vertex representations (nnabla.Variable with shape (N, D))
+    h                 -- the input vertex representations (nnabla.Variable with shape (|V|, D))
     edges             -- the dictionary that represents the graph edge ({label, [in, out]})
     state_size        -- (optional) the size of hidden state (h.shape[1] is used if this argument is None)
     bias_initializer  -- (optional) the parameter initializer for bias
@@ -38,7 +38,7 @@ def activate(h, edges, state_size=None, bias_initializer=None, edge_initializers
 
     Return value
 
-    - Return a variable with shape (N, state_size)
+    - Return a variable with shape (|V|, state_size)
     """
     if state_size is None:
         state_size = h.shape[1]
@@ -90,11 +90,11 @@ def propagate(h, edges, state_size=None,
               w_initializer=None, u_initializer1=None, u_initializer2=None,
               bias_initializer=None, edge_initializers = None):
     """
-    Activate vertex representations
+    Propagate vertex representations
 
     Arguments:
 
-    h                 -- the input vertex representations (nnabla.Variable with shape (N, D))
+    h                 -- the input vertex representations (nnabla.Variable with shape (|V|, D))
     edges             -- the dictionary that represents the graph edge ({label, [in, out]})
     state_size        -- (optional) the size of hidden state (h.shape[1] is used if this argument is None)
     w_initializer     -- (optional)
@@ -105,7 +105,7 @@ def propagate(h, edges, state_size=None,
 
     Return value
 
-    - Return a variable with shape (N, D)
+    - Return a variable with shape (|V|, D)
     """
     if state_size is None:
         state_size = h.shape[1]
@@ -126,10 +126,40 @@ def propagate(h, edges, state_size=None,
     return F.add2(F.sub2(h, F.mul2(z, h)), F.mul2(z, h_hat))
 
 def node_representation(h, x, n_outmaps, w_init=None, b_init=None):
+    """
+    Outputs node selection/representaiton model
+
+    Arguments:
+
+    h                 -- the input vertex representations (nnabla.Variable with shape (|V|, H))
+    x                 -- the input vertex annotation (nnabla.Variable with shape (|V|, X))
+    n_outmaps         -- the size of node representation
+    w_init            -- (optional)
+    b_init            -- (optional)
+
+    Return value
+
+    - Return a variable with shape (|V|, n_outmaps)
+    """
     with nn.parameter_scope("node_representation"):
         return PF.affine(F.concatenate(h, x), n_outmaps, w_init=w_init, b_init=b_init)
 
 def graph_representation(h, x, n_outmaps, w_init=None, b_init=None):
+    """
+    Outputs graph representaiton model
+
+    Arguments:
+
+    h                 -- the input vertex representations (nnabla.Variable with shape (|V|, H))
+    x                 -- the input vertex annotation (nnabla.Variable with shape (|V|, X))
+    n_outmaps         -- the size of node representation
+    w_init            -- (optional)
+    b_init            -- (optional)
+
+    Return value
+
+    - Return a variable with shape (n_outmaps)
+    """
     with nn.parameter_scope("graph_representation"):
         output = F.concatenate(h, x)
         output = PF.affine(output, (2, n_outmaps), w_init=w_init, b_init=b_init)
@@ -137,7 +167,21 @@ def graph_representation(h, x, n_outmaps, w_init=None, b_init=None):
         return F.sum(F.mul2(F.sigmoid(s), F.tanh(t)), axis=0, keepdims=True)
 
 def node_annotaiton(h, x, w_init=None, b_init=None):
-    with nn.parameter_scope("node_anntation"):
+    """
+    Outputs graph annotation model
+
+    Arguments:
+
+    h                 -- the input vertex representations (nnabla.Variable with shape (|V|, H))
+    x                 -- the input vertex annotation (nnabla.Variable with shape (|V|, X))
+    w_init            -- (optional)
+    b_init            -- (optional)
+
+    Return value
+
+    - Return a tuple of vertex representations and annotation for a next step
+    """
+    with nn.parameter_scope("node_annotation"):
         s = F.concatenate(h, x)
         x = F.sigmoid(PF.affine(s, x.shape[1], w_init=w_init, b_init=b_init))
         z = nn.Variable((x.shape[0], h.shape[1] - x.shape[1]))
