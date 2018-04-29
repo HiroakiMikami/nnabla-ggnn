@@ -124,3 +124,7 @@ def propagate(h, edges, state_size=None,
         h_hat2 = PF.affine(F.mul2(r, h), state_size, with_bias=False, w_init=u_initializer2)
     h_hat = F.tanh(F.add2(h_hat1, h_hat2))
     return F.add2(F.sub2(h, F.mul2(z, h)), F.mul2(z, h_hat))
+
+def node_representation(h, x, n_outmaps, w_init=None, b_init=None):
+    with nn.parameter_scope("node_representation"):
+        return PF.affine(F.concatenate(h, x), n_outmaps, w_init=w_init, b_init=b_init)

@@ -46,6 +46,19 @@ def degrees(V, E):
 
 rng = np.random.RandomState(10000)
 
+def predict(V, E):
+    # convert to nn.Variable
+    x = nn.Variable(V.shape)
+    x.data.data = V
+    h_0 = nn.Variable((len(V), 16))
+    h_0.data.data = utils.h_0(V, 16)
+
+    # propagate
+    h = layers.propagate(h_0, E)
+
+    # output
+    return layers.node_representation(h, x, 1)
+
 def train():
     parser = argparse.ArgumentParser()
     parser.add_argument("--num-train-examples", type=int, default=1600)
@@ -53,8 +66,15 @@ def train():
     parser.add_argument("--accum-grad", type=int, default=32)
     parser.add_argument("--max-iter", type=int, default=6400)
     parser.add_argument("--valid-interval", type=int, default=100)
+    parser.add_argument("--context", type=str, default="cpu")
+    parser.add_argument("--device-id", type=int, default=0)
 
     args = parser.parse_args()
+
+    from nnabla.ext_utils import get_extension_context
+    extension_module = args.context
+    ctx = get_extension_context(extension_module, device_id=args.device_id)
+    nn.set_default_context(ctx)
 
     # prepare dataset
     tdataset = []
@@ -93,25 +113,18 @@ def train():
             E = E[0][0]
             degree = degree[0][0]
 
-            # convert to nn.Variable
-            x = nn.Variable(V.shape)
-            x.data.data = V
-            h_0 = nn.Variable((len(V), 16))
-            h_0.data.data = utils.h_0(V, 16)
-            label = nn.Variable(degree.shape)
-            label.data.data = degree
+            # predict
+            output = predict(V, E)
 
-            # propagate
-            h = layers.propagate(h_0, E)
-
-            # output
-            output = F.concatenate(h, x)
-            output = PF.affine(output, 1)
-            label = F.reshape(label, (len(V), 1))
-            loss = F.mean(F.squared_error(output, label))
-
+            # initialize solver
             if i == 0 and b == 0:
                 solver.set_parameters(nn.get_parameters())
+
+            # calculate loss
+            label = nn.Variable(degree.shape)
+            label.data.data = degree
+            label = F.reshape(label, (len(V), 1))
+            loss = F.mean(F.squared_error(output, label))
 
             # training
             loss.forward(clear_no_need_grad=True)
@@ -134,22 +147,11 @@ def train():
                 E = E[0][0]
                 degree = degree[0][0]
 
-                # convert to nn.Variable
-                x = nn.Variable(V.shape)
-                x.data.data = V
-                h_0 = nn.Variable((len(V), 16))
-                h_0.data.data = utils.h_0(V, 16)
+                output = predict(V, E)
+
                 label = nn.Variable(degree.shape)
                 label.data.data = degree
-
-                # propagate
-                h = layers.propagate(h_0, E)
-
-                # output
-                output = F.concatenate(h, x)
-                output = PF.affine(output, 1)
                 label = F.reshape(label, (len(V), 1))
-
                 error = F.sum(F.less_scalar(F.abs(F.sub2(output, label)), 0.5))
 
                 error.forward()

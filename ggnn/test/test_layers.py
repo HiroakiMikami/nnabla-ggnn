@@ -1,6 +1,7 @@
 import lib.layers as L
 
 import nnabla as nn
+import nnabla.initializer as I
 import numpy as np
 from unittest import TestCase
 
@@ -96,3 +97,15 @@ class TestLayers(TestCase):
             self.assertEqual((1, 3, 1), params["W_zr/affine/W"].shape)
             self.assertEqual((1, 2, 1), params["U_zr/affine/W"].shape)
             self.assertEqual((1, 1), params["U/affine/W"].shape)
+    
+    def test_node_representation(self):
+        h = nn.Variable((1, 1))
+        h.data.data[0] = 1
+        x = nn.Variable((1, 1))
+        x.data.data[0] = 2
+
+        with nn.parameter_scope("test_node_representation"):
+            r = L.node_representation(h, x, 1, w_init=I.ConstantInitializer(1), b_init=I.ConstantInitializer(0))
+            self.assertEqual((1, 1), r.shape)
+            r.forward()
+            self.assertEqual(3, r.data.data[0, 0])

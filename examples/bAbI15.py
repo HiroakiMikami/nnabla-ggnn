@@ -99,16 +99,37 @@ class BAbI15DataSource(SimpleDataSource):
         if self._shuffle:
             self._rng.shuffle(self._order)
 
+def predict(V, E):
+    # convert to nn.Variable
+    x = nn.Variable(V.shape)
+    x.data.data = V
+    h = nn.Variable((len(V), 5))
+    h.data.data = utils.h_0(V, 5)
+
+    # propagate
+    for _ in range(5):
+        h = layers.propagate(h, E)
+
+    # output
+    return layers.node_representation(h, x, 1)
+
 def train():
     parser = argparse.ArgumentParser()
     parser.add_argument("--train-file", type=str)
     parser.add_argument("--valid-file", type=str)
     parser.add_argument("--num-training-examples", type=int, default=50)
-    parser.add_argument("--accum-grad", type=int, default=5)
+    parser.add_argument("--accum-grad", type=int, default=1)
     parser.add_argument("--valid-interval", type=int, default=200)
     parser.add_argument("--threshold", type=float, default=0.95)
+    parser.add_argument("--context", type=str, default="cpu")
+    parser.add_argument("--device-id", type=int, default=0)
 
     args = parser.parse_args()
+
+    from nnabla.ext_utils import get_extension_context
+    extension_module = args.context
+    ctx = get_extension_context(extension_module, device_id=args.device_id)
+    nn.set_default_context(ctx)
 
     # prepare data iterators
     tdata = data_iterator(BAbI15DataSource(args.train_file, args.num_training_examples, shuffle=True), 1, False, False, False)
@@ -138,21 +159,8 @@ def train():
             ans = x[3][0][0]
 
             # construct GGNN
-            ## convert to nn.Variable
-            x = nn.Variable(V.shape)
-            x.data.data = V
-            h = nn.Variable((len(V), 5))
-            h.data.data = utils.h_0(V, 5)
-            label = nn.Variable((1, 1))
-            label.data.data[0, 0] = ans
-
-            ## propagate
-            for _ in range(5):
-                h = layers.propagate(h, E)
-
-            ## calculate node score
-            s = PF.affine(h, 1)
-            s = F.reshape(s, (1, s.shape[0]))
+            output = predict(V, E)
+            output = F.reshape(output, (1, output.shape[0]))
 
             # initialize solver
             if not solver_initialized:
@@ -161,9 +169,11 @@ def train():
                 solver.zero_grad()
 
             # calculate loss/error
-            s2 = s.unlinked()
-            loss = F.mean(F.softmax_cross_entropy(s, label))
-            error = F.mean(F.top_n_error(s2, label))
+            label = nn.Variable((1, 1))
+            label.data.data[0, 0] = ans
+            output2 = output.unlinked()
+            loss = F.mean(F.softmax_cross_entropy(output, label))
+            error = F.mean(F.top_n_error(output2, label))
             F.sink(loss, error).forward(clear_no_need_grad=True)
             loss.backward(clear_buffer=True)
 
@@ -191,32 +201,21 @@ def train():
                 E = x[2][0][0]
                 ans = x[3][0][0]
 
-                # construct GGNN
-                ## convert to nn.Variable
-                x = nn.Variable(V.shape)
-                x.data.data = V
-                h = nn.Variable((len(V), 5))
-                h.data.data = utils.h_0(V, 5)
-                label = nn.Variable((1, 1))
-                label.data.data[0, 0] = ans
-
-                for _ in range(5):
-                    h = layers.propagate(h, E)
-
-                ## calculate node score
-                s = PF.affine(h, 1)
-                s = F.reshape(s, (1, s.shape[0]))
+                output = predict(V, E)
+                output = F.reshape(output, (1, output.shape[0]))
 
                 # calculate error
-                error = F.top_n_error(s, label)
+                label = nn.Variable((1, 1))
+                label.data.data[0, 0] = ans
+                error = F.top_n_error(output, label)
                 error.forward(clear_no_need_grad=True)
 
                 if error.data.data > 0.5:
                     if wrong_example is None:
-                        wrong_example = (id2str, V, E, ans, s.data.data)
+                        wrong_example = (id2str, V, E, ans, output.data.data)
                 else:
                     if correct_example is None:
-                        correct_example = (id2str, V, E, ans, s.data.data)
+                        correct_example = (id2str, V, E, ans, output.data.data)
                 validation_error += error.data.data
             validation_error /= vdata.size
             verror.add(cnt, validation_error)
