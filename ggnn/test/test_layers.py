@@ -128,3 +128,22 @@ class TestLayers(TestCase):
             actual += 1 / (1 + math.exp(-3)) * math.tanh(3)
             actual += 1 / (1 + math.exp(-6)) * math.tanh(6)
             self.assertTrue(np.allclose(actual, r.data.data[0, 0]))
+
+
+    def node_annotation(self):
+        h = nn.Variable((1, 2))
+        h.data.data[0, 0] = 1
+        h.data.data[0, 1] = 0
+        x = nn.Variable((1, 1))
+        x.data.data[0] = 2
+
+        with nn.parameter_scope("test_node_annotation"):
+            h, x = L.node_annotation(h, x, 1, w_init=I.ConstantInitializer(1), b_init=I.ConstantInitializer(0))
+            self.assertEqual((1, 2), h.shape)
+            self.assertEqual((1, 1), x.shape)
+            F.sink(h, x).forward()
+
+            actual = 1 / (1 + math.exp(-3))
+            self.assertTrue(np.allclose(actual, h.data.data[0, 0]))
+            self.assertEqual(0, h.data.data[0, 1])
+            self.assertTrue(np.allclose(actual, x.data.data[0, 0]))

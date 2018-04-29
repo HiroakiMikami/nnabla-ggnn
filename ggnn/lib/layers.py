@@ -135,3 +135,12 @@ def graph_representation(h, x, n_outmaps, w_init=None, b_init=None):
         output = PF.affine(output, (2, n_outmaps), w_init=w_init, b_init=b_init)
         (s, t) = F.split(output, axis=1)
         return F.sum(F.mul2(F.sigmoid(s), F.tanh(t)), axis=0, keepdims=True)
+
+def node_annotaiton(h, x, w_init=None, b_init=None):
+    with nn.parameter_scope("node_anntation"):
+        s = F.concatenate(h, x)
+        x = F.sigmoid(PF.affine(s, x.shape[1], w_init=w_init, b_init=b_init))
+        z = nn.Variable((x.shape[0], h.shape[1] - x.shape[1]))
+        z.data.data[:, :] = 0.0
+        h = F.concatenate(x, z)
+        return h, x

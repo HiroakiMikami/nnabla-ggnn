@@ -100,14 +100,8 @@ def step(h, x, E):
 
     # annotation
     with nn.parameter_scope("annotation"):
-        h = F.concatenate(h, x)
-        with nn.parameter_scope("node_annotation"):
-            x = F.sigmoid(PF.affine(h, x.shape[1]))
-        z = nn.Variable((x.shape[0], h.shape[1] - x.shape[1] * 2))
-        z.data.data[:, :] = 0.0
-        h = F.concatenate(x, z)
+        h, x = layers.node_annotaiton(h, x)
     return h, x, output
-    
 
 def predict(V, E, n):
     # convert to nn.Variable
@@ -129,11 +123,18 @@ def train():
     parser.add_argument("--train-file", type=str)
     parser.add_argument("--valid-file", type=str)
     parser.add_argument("--num-training-examples", type=int, default=250)
-    parser.add_argument("--accum-grad", type=int, default=5)
+    parser.add_argument("--accum-grad", type=int, default=1)
     parser.add_argument("--valid-interval", type=int, default=200)
     parser.add_argument("--threshold", type=float, default=0.95)
+    parser.add_argument("--context", type=str, default="cpu")
+    parser.add_argument("--device-id", type=int, default=0)
 
     args = parser.parse_args()
+
+    from nnabla.ext_utils import get_extension_context
+    extension_module = args.context
+    ctx = get_extension_context(extension_module, device_id=args.device_id)
+    nn.set_default_context(ctx)
 
     # prepare data iterators
     tdata = data_iterator(BAbI19DataSource(args.train_file, args.num_training_examples, shuffle=True), 1, False, False, False)
