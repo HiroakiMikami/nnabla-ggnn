@@ -38,7 +38,8 @@ TODO
 ---
 
 * [ ] mini-batched training
-    * I didn't implement the mini-batch version, because it makes Python code slower.
+    * I didn't implement the mini-batch version.
+    * I think it is not difficult to implement mini-batched training if the number of vertices in graph is same.
 
 References
 ---
