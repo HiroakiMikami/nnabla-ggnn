@@ -21,8 +21,14 @@ def stack(xs, axis=0):
     else:
         return F.stack(*xs, axis=axis)
 
-def sum(xs, axis=None):
-    return F.sum(stack(xs), axis=axis)
+def sum(xs, shape=None, axis=None):
+    assert(len(xs) > 0 or shape is not None)
+    if len(xs) == 0:
+        x = nn.Variable(shape)
+        x.data.data = 0
+        return x
+    else:
+        return F.sum(stack(xs), axis=axis)
 
 def activate(h, edges, state_size=None, bias_initializer=None, edge_initializers = None):
     """
@@ -76,7 +82,8 @@ def activate(h, edges, state_size=None, bias_initializer=None, edge_initializers
             state[edge[0]].append(output)
 
     # assemble state
-    outputs = stack(list(map(lambda x: sum(x, axis=0), state)))
+    state = np.array(state)
+    outputs = stack(list(map(lambda x: sum(x, shape=(state_size,), axis=0), state)))
 
     # add bias
     W = nn.parameter.get_parameter_or_create("affine/W", (state_size, state_size), need_grad=False)

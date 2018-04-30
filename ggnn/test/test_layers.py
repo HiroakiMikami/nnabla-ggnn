@@ -80,6 +80,18 @@ class TestLayers(TestCase):
             expected[2][0] = 20
             expected[3][0] = 3
             self.assertTrue(np.allclose(expected, output.data.data))
+        with nn.parameter_scope("test_isolated_vertex"):
+            vertices = nn.Variable((4, 1))
+            vertices.data.data = [[1], [2], [3], [4]]
+
+            output = L.activate(vertices, {})
+            params = nn.get_parameters(grad_only=False)
+            params["affine/b"].data.data = [0]
+
+            output.forward()
+            expected = np.zeros((4, 1))
+            expected[:,: ] = 0
+            self.assertTrue(np.allclose(expected, output.data.data))
 
     def test_propagate(self):
         """
