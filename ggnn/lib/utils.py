@@ -3,6 +3,8 @@ import nnabla.functions as F
 import nnabla.parametric_functions as PF
 import numpy as np
 
+from .layers import split, stack
+
 def h_0(vertex_annotations, h_size):
     """
     Initilaize vertex state
@@ -84,3 +86,34 @@ def from_edge_list(l):
             edges[label] = []
         edges[label].append((i, j))
     return edges
+
+def flatten_minibatch(hs, Es):
+    """
+    Mergem multiple graphs into one graph
+
+    Arguments:
+
+    hs                -- the batched input vertex representations (the list of the numpy array with shape (|V|, D))
+    Es                -- the batched dictionary that represents the graph edge (the numpy array of {label, [in, out]})
+
+    Returns value:
+
+    - A tuple of vertex representations and edges
+    """
+
+    Vs = np.array(list(map(lambda h: h.shape[0], hs)))
+    offsets = np.cumsum(Vs)
+    from itertools import chain
+    vertices = np.array(list(chain.from_iterable(hs)))
+
+    E = {}
+    for i, edges in enumerate(Es):
+        if i == 0:
+            offset = 0
+        else:
+            offset = offsets[i - 1]
+        for label in edges.keys():
+            if not label in E:
+                E[label] = []
+            E[label].extend(map(lambda x: (x[0] + offset, x[1] + offset), edges[label]))
+    return vertices, E
